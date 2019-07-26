@@ -13,12 +13,13 @@
 # last modified: headStrings 
 # v10.4 Huijbregts 8 jan 2018
 # updated comments tipirneni
+# updated added proxy lib added options for comparision tipirneni
 #*******************************************************
-
+library(proxy)
 # default global constants
 batch_def  =  500   # default rows of sample randomly drawn from data file
 cycles_def = 1000   # default number of cycles
-pen_def    = 0.001  # default penalty
+pen_def    = 0.009  # default penalty
 
 # START OF GETMONTE FUNCTION
 getMonte <- function(datafile,targetfile,
@@ -32,14 +33,24 @@ getMonte <- function(datafile,targetfile,
         Ndata <- nrow(dif2targ)
         kcol <- ncol(dif2targ)
         rowLabels <- rownames(dif2targ)
+		print(paste('dimension dif2targ=',dim(dif2targ),sep=' '))
+		write('',stdout())
         # preallocate data
         matPop    <- matrix(NA_integer_,  Nbatch, 1, byrow=T)
         dumPop    <- matrix(NA_integer_,  Nbatch, 1, byrow=T) 
         matAdmix  <- matrix(NA_real_, Nbatch, kcol, byrow=T)
         dumAdmix  <- matrix(NA_real_, Nbatch, kcol, byrow=T)
+		print(paste('dimension matadmin=',dim(matAdmix),sep=' '))
+		write('',stdout())
+		print(paste('dimension matpop=',dim(matPop),sep=' ')) 
+		write('',stdout())
         matPop    <- sample(1:Ndata,Nbatch,replace=T)        
+		#print(paste('dimension matpop=',dim(matPop),sep=' ')) 
+		write('',stdout())
         # fill matPop with random row numbers 1:Ndata from datafile
         matAdmix   <- dif2targ[matPop,]
+	   # print(paste('dimension matadmin=',dim(matAdmix),sep=' '))
+		write('',stdout())
         # iniatialize objective function         
         colM1 <- colMeans(matAdmix)
         eval1 <- (1+pen) * sum(colM1^2)  
@@ -57,7 +68,12 @@ getMonte <- function(datafile,targetfile,
                 # test alternative pop
                 store <- matAdmix[b,]
                 matAdmix[b,] <- dumAdmix[b,]
+				#print(paste('dimension b=',store,sep=' _'))
+				#print(b)
+				#print(paste('\tdimension matb at =',matAdmix[b,],sep=' - '))
                 colM2 <- colMeans(matAdmix)
+				# check delta value of this batch number row vs colmeans of diff matrix, if lower use it
+				# TODO add neg penalty for uneven matches
                 eval2 <- sum(colM2^2) + pen*sum(matAdmix[b, ]^2)
                 # conditional adjust
                 if (eval2 <= eval1) {
@@ -121,8 +137,8 @@ getMonte <- function(datafile,targetfile,
     check_formats(myData, myTarget)
     check_omit(myData, omit)    # single item distances
     PCT <- ifelse(max(myData[1, ]>2), 100, 1)
-    print('1. CLOSEST SINGLE ITEM DISTANCE%')
-    print(nearestItems(myData, myTarget)*100/PCT)
+    print('1. CLOSEST SINGLE ITEM DISTANCE% canberra')
+    print(nearestItems(myData, myTarget))
     cat('\n')
 
     # full table nMonte
@@ -210,10 +226,11 @@ tab2comma <- function(tabFile,commaFile) {
 # This is not the nearest neighbor algorithm;
 # when the number of items is smaller than maxFits,
 # functions returns all the items.
+# euclidean
 #-------------------------------------------------------------------------------
-nearestItems <- function(inData, inTarget, maxFits=20) {
+nearestItems <- function(inData, inTarget, maxFits=200) {
     totArr <- rbind(inTarget, inData)
-    distMat <- as.matrix(dist(totArr, method='euclidean'))
+    distMat <- as.matrix(dist(totArr, method='canberra'))#canberra soergel euclidean
     dist1 <- distMat[,1]
     sortDist <- dist1[order(dist1)]
     nFits <- min(nrow(inData), maxFits)
